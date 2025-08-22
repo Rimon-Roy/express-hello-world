@@ -1,14 +1,12 @@
 const express = require("express");
 const app = express();
+
 const port = process.env.PORT || 3001;
+const VERIFY_TOKEN = "odoo_16_enterprise"; // must match the token you set in Meta
 
-app.get("/", (req, res) => res.type('html').send(html));
+app.use(express.json());
 
-const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
-
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
-
+// ----- Hello Render homepage -----
 const html = `
 <!DOCTYPE html>
 <html>
@@ -26,29 +24,15 @@ const html = `
       }, 500);
     </script>
     <style>
-      @import url("https://p.typekit.net/p.css?s=1&k=vnd5zic&ht=tk&f=39475.39476.39477.39478.39479.39480.39481.39482&a=18673890&app=typekit&e=css");
-      @font-face {
-        font-family: "neo-sans";
-        src: url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff2"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("opentype");
-        font-style: normal;
-        font-weight: 700;
-      }
-      html {
-        font-family: neo-sans;
-        font-weight: 700;
-        font-size: calc(62rem / 16);
-      }
-      body {
-        background: white;
-      }
+      body { font-family: Arial, sans-serif; background: white; }
       section {
         border-radius: 1em;
         padding: 1em;
         position: absolute;
-        top: 50%;
-        left: 50%;
-        margin-right: -50%;
+        top: 50%; left: 50%;
         transform: translate(-50%, -50%);
+        font-size: 2rem;
+        font-weight: bold;
       }
     </style>
   </head>
@@ -58,4 +42,36 @@ const html = `
     </section>
   </body>
 </html>
-`
+`;
+
+app.get("/", (req, res) => res.type("html").send(html));
+
+// ----- WhatsApp Cloud Webhook Verification -----
+app.get("/whatsapp/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("Webhook verified by Meta!");
+    res.status(200).send(challenge);
+  } else {
+    console.warn("Failed verification attempt.");
+    res.sendStatus(403);
+  }
+});
+
+// ----- WhatsApp Cloud Webhook Messages -----
+app.post("/whatsapp/webhook", (req, res) => {
+  console.log("Incoming webhook event:", JSON.stringify(req.body, null, 2));
+  // TODO: here you can forward messages into Odoo via API/RPC if needed
+  res.sendStatus(200);
+});
+
+// ----- Start server -----
+const server = app.listen(port, () =>
+  console.log(`App listening on port ${port}!`)
+);
+
+server.keepAliveTimeout = 120 * 1000;
+server.headersTimeout = 120 * 1000;
